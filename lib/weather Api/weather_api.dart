@@ -1,8 +1,12 @@
 import 'dart:convert';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
-import 'model_class/getWeather.dart';
+import '../reusable_widgets.dart';
+import 'model_class/Weather.dart';
 
 class WeatherApi extends StatefulWidget {
   const WeatherApi({super.key});
@@ -12,234 +16,114 @@ class WeatherApi extends StatefulWidget {
 }
 
 class _WeatherApiState extends State<WeatherApi> {
-  String url = "https://api.weatherapi.com/v1/forecast.json?key=b028abc92fe2455dac3113350251405&q=Kohat&days=3&aqi=yes&alerts=yes";
-
-
-
+  final getWeather = http.get(Uri.parse(
+      "https://api.weatherapi.com/v1/forecast.json?key=b028abc92fe2455dac3113350251405&q=Kohat&days=3&aqi=yes&alerts=yes"));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xff6cabf8),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: FutureBuilder(
-
-        future: http.get(Uri.parse(url)),
-
+        future: getWeather,
         builder: (context, snapshot) {
-
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } if (snapshot.hasError) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
             return Text(snapshot.error.toString());
           }
 
-              final data = jsonDecode(snapshot.data!.body);
-             Weather weather = Weather.fromJson(data);
+          final data = jsonDecode(snapshot.data!.body);
+          Weather weather = Weather.fromJson(data);
 
+          // Today + Tomorrow’s hours for 24h scroll
+          final todayHours = weather.forecast!.forecastday![0].hour!;
+          final tomorrowHours =
+          weather.forecast!.forecastday!.length > 1 ? weather.forecast!.forecastday![1].hour! : [];
+          final allHours = [...todayHours, ...tomorrowHours];
 
-            return Container(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(
-                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5YQdJx0hSYqDMG90yi9XRSo3Y8yS5MWTsFw&s",
+          int currentHour = DateTime.now().hour;
+          int startIndex = allHours.indexWhere(
+                  (h) => DateTime.parse(h.time!).hour >= currentHour);
+          if (startIndex == -1) startIndex = 0;
+
+          final next24 = allHours.skip(startIndex).take(24).toList();
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+
+                // Current Weather Card
+                CurrentWeatherCard(
+                  city: weather.location!.name!,
+                  temp: weather.current!.tempC!.round(),
+                  condition: weather.current!.condition!.text!,
+                  maxTemp: weather.forecast!.forecastday![0].day!.maxtempC!.round(),
+                  minTemp: weather.forecast!.forecastday![0].day!.mintempC!.round(),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Hourly Forecast
+                SizedBox(
+                  height: 140,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: next24.length,
+                    itemBuilder: (context, index) {
+                      final hour = next24[index];
+                      String formattedHour =
+                      DateFormat.Hm().format(DateTime.parse(hour.time!));
+                      return HourlyForecastTile(
+                        hour: formattedHour,
+                        iconUrl: "https:${hour.condition!.icon!}",
+                        temp: hour.tempC!.round(),
+                      );
+                    },
                   ),
-                  fit: BoxFit.cover,
                 ),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 50),
 
-                    // Current weather card
-                    Column(
-                      children: [
-                        Text(
-                          weather.location!.name!,
-                          style: TextStyle(
-                            fontSize: 22,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          "${weather.current!.tempC.toString()}\u00B0C",
-                          style: TextStyle(
-                            fontSize: 28,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          weather.current!.condition!.text!,
-                          style: TextStyle(fontSize: 18, color: Colors.white70),
-                        ),
-                        SizedBox(height: 8),
+                const SizedBox(height: 20),
 
-                        Text(
-                          "H: ${weather.forecast!.forecastday![0].day!.maxtempC}°  L: ${weather.forecast!.forecastday![0].day!.mintempC}°",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                // Daily Forecast
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff66a2ed),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: weather.forecast!.forecastday!.length,
+                    itemBuilder: (context, index) {
+                      final day = weather.forecast!.forecastday![index];
+                      DateTime date = DateTime.parse(day.date!);
+                      String formattedDate =
+                      DateFormat("M/d").format(date);
+                      String dayName = DateFormat("E").format(date);
 
-                      ],
-                    ),
-                    SizedBox(height: 30),
-
-                    // Hourly forecast
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.black26,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount:
-                             weather.forecast!.forecastday![0].hour!.length,
-                          itemBuilder: (context, index) {
-
-                                weather.forecast!.forecastday![0].hour![index];
-                            return Container(
-                              width: 90,
-                              margin: EdgeInsets.symmetric(horizontal: 8),
-
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Container(
-                                height: 150,
-                                width: 120,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.indigo.withOpacity(0.6),
-                                      Colors.blue.withOpacity(0.4),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                              )
-                                  ]
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  weather.forecast!.forecastday![0].hour![index].time.toString().split(" ")[1],
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                SizedBox(height: 6),
-                                Image.network(
-                                  "https:${weather.forecast!.forecastday![0].hour![index].condition!.icon!}",
-                                  width: 40,
-                                  height: 40,
-                                ),
-                                SizedBox(height: 6),
-                                Text(
-                                  "${weather.forecast!.forecastday![0].hour![index].tempC}°C",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ]
-                            )));
-                          },
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(height: 30),
-
-                    // Next 7 days forecast (vertical)
-                    ListView.builder(
-
-                      shrinkWrap: true,
-                      itemCount: data['forecast']['forecastday'].length,
-                      itemBuilder: (context, index) {
-                        data['forecast']['forecastday'][index];
-                        return Container(
-                          margin: EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
-                          ),
-                          padding: EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.indigo.withOpacity(0.6),
-                                Colors.blue.withOpacity(0.4),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 5,
-                                offset: Offset(2, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                data['forecast']['forecastday'][index]['date'],
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  Image.network(
-                                    "https:${data['forecast']['forecastday'][index]['day']['condition']['icon']}",
-                                    width: 40,
-                                    height: 40,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    "H: ${data['forecast']['forecastday'][index]['day']['maxtemp_c']}°  L: ${data['forecast']['forecastday'][index]['day']['mintemp_c']}°",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                      return ForecastDayTile(
+                        formattedDate: formattedDate,
+                        dayName: dayName,
+                        iconUrl: "https:${day.day!.condition!.icon!}",
+                        minTemp: day.day!.mintempC!.round(),
+                        maxTemp: day.day!.maxtempC!.round(),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            );
-          }
+              ],
+            ),
+          );
+        },
       ),
     );
   }
