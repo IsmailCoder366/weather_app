@@ -1,31 +1,89 @@
 import 'dart:ui';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 
-
-
-class AnimatedBackground extends StatelessWidget {
+class AnimatedBackground extends StatefulWidget {
   final String condition;
-
   const AnimatedBackground({super.key, required this.condition});
 
   @override
-  Widget build(BuildContext context) {
-    // Pick gradient based on condition
-    final gradient = _getGradient(condition); // Use the condition to get the appropriate gradient
+  State<AnimatedBackground> createState() => _AnimatedBackgroundState();
+}
 
+class _AnimatedBackgroundState extends State<AnimatedBackground> {
+  late AudioPlayer _player;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+    _playSound(widget.condition);
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedBackground oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.condition != widget.condition) {
+      _playSound(widget.condition); // change sound when weather changes
+    }
+  }
+
+  @override
+  void dispose() {
+    _player.stop();
+    _player.dispose(); //
+    super.dispose();
+  }
+
+  Future<void> _playSound(String condition) async {
+    String? soundPath;
+
+    switch (condition.toLowerCase()) {
+      case "sunny":
+      case "partly cloudy":
+      case "mist":
+        soundPath = "sound/bird.mp3";
+        break;
+      case "rain":
+      case "drizzle":
+        soundPath = "sound/rain.mp3";
+        break;
+      case "thunderstorm":
+        soundPath = "sound/thunder.mp3";
+        break;
+      case "wind":
+      case "fog":
+      case "haze":
+        soundPath = "sound/wind.mp3";
+        break;
+    }
+
+    if (soundPath != null) {
+      await _player.stop();
+      await _player.setReleaseMode(ReleaseMode.stop); //
+      await _player.play(AssetSource(soundPath)); // ✅ FIXED path
+
+     Future.delayed(const Duration(seconds: 10), () async{
+       await _player.stop();
+     });
+    }
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    final gradient = _getGradient(widget.condition);
     return AnimatedContainer(
       duration: const Duration(seconds: 2),
-      decoration: BoxDecoration(
-        gradient: gradient
-      ),
+      decoration: BoxDecoration(gradient: gradient),
     );
   }
 
-  LinearGradient _getGradient(condition) {
-    switch (condition.toLowerCase()) { // Convert to lowercase for case-insensitive comparison
+  LinearGradient _getGradient(String condition) {
+    switch (condition.toLowerCase()) {
       case "sunny":
         return const LinearGradient(
           colors: [Color(0xfff6d365), Color(0xfffda085)],
@@ -39,6 +97,7 @@ class AnimatedBackground extends StatelessWidget {
           end: Alignment.bottomCenter,
         );
       case "rain":
+      case "drizzle":
         return const LinearGradient(
           colors: [Color(0xff00c6fb), Color(0xff005bea)],
           begin: Alignment.topCenter,
@@ -50,7 +109,6 @@ class AnimatedBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         );
-
       case "snow":
         return const LinearGradient(
           colors: [Color(0xffe0eafc), Color(0xffcfdef3)],
@@ -65,8 +123,9 @@ class AnimatedBackground extends StatelessWidget {
         );
       case "partly cloudy":
         return const LinearGradient(
+          colors: [Color(0xff3498db), Color(0xff2980b9)],
+
           begin: Alignment.topCenter,
-          colors: [Color(0xff667db6), Color(0xff0082c8), Color(0xff0082c8), Color(0xff667db6)],
           end: Alignment.bottomCenter,
         );
       case "overcast":
@@ -87,13 +146,6 @@ class AnimatedBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         );
-      case "drizzle":
-        return const LinearGradient(
-          colors: [Color(0xff89f7fe), Color(0xff66a6ff)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        );
-
       default:
         return const LinearGradient(
           colors: [Color(0xff6cabf8), Color(0xff428de8)],
@@ -103,6 +155,7 @@ class AnimatedBackground extends StatelessWidget {
     }
   }
 }
+
 
 class CurrentWeatherCard extends StatelessWidget {
   final String city;

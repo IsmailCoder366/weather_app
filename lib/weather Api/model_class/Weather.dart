@@ -5,14 +5,12 @@ class Weather {
 
   Weather({this.location, this.current, this.forecast});
 
-  Weather.fromJson(Map<String, dynamic> json) {
-    location =
-    json['location'] != null ? Location.fromJson(json['location']) : null;
-    current =
-    json['current'] != null ? Current.fromJson(json['current']) : null;
-    forecast =
-    json['forecast'] != null ? Forecast.fromJson(json['forecast']) : null;
-  }
+  Weather.fromJson(Map<String, dynamic> json)
+  : location = json['location'] as String,
+  current = json['current'] as String,
+  forecast = json['forecast'] as String,
+
+  Map<String, dynamic> toJson() => {'location' : location, 'current' : current, 'forecast' : forecast};
 }
 
 class Location {
@@ -32,9 +30,8 @@ class Current {
   Current({this.tempC, this.condition});
 
   Current.fromJson(Map<String, dynamic> json) {
-    tempC = (json['temp_c'] as num?)?.toDouble();
-    condition =
-    json['condition'] != null ? Condition.fromJson(json['condition']) : null;
+    tempC = json['temp_c'];
+     Condition.fromJson(json['condition']);
   }
 }
 
@@ -57,10 +54,8 @@ class Forecast {
 
   Forecast.fromJson(Map<String, dynamic> json) {
     if (json['forecastday'] != null) {
-      forecastday =
-          (json['forecastday'] as List).map((v) => Forecastday.fromJson(v)).toList();
-    }
-  }
+      forecastday =(json['forecastday'] as List).map((v) => Forecastday.fromJson(v)).toList();
+    }}
 }
 
 class Forecastday {
