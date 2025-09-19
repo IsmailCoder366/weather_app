@@ -5,12 +5,12 @@ class Weather {
 
   Weather({this.location, this.current, this.forecast});
 
-  Weather.fromJson(Map<String, dynamic> json)
-  : location = json['location'] as String,
-  current = json['current'] as String,
-  forecast = json['forecast'] as String,
+  Weather.fromJson(Map<String, dynamic> json){
+    location = json['location'];
+    current = json['current'];
+    forecast = json['forecast'];
 
-  Map<String, dynamic> toJson() => {'location' : location, 'current' : current, 'forecast' : forecast};
+  }
 }
 
 class Location {
